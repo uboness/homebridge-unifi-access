@@ -9,14 +9,13 @@
   "description": "Homebridge Unifi Access Plugin",
   "license": "Apache-2.0",
   "keywords": [
-    "homebridge-plugin"
+    "homebridge-plugin",
+    "unifi",
+    "unifi-access"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/uboness/{{name}}"
-  },
-  "bugs": {
-    "url": "https://github.com/uboness/{{name}}/issues"
+    "url": "https://github.com/uboness/homebridge-unifi-access"
   },
   "engines": {
     "node": "^20.19.0",
@@ -46,19 +45,17 @@
     "release:postbump": "pnpm run release:push && pnpm run release:publish",
     "release:push": "git push --follow-tags",
     "release:publish": "npm publish --access public",
-    "release": "pnpm run release:bump && pnpm run release:push && pnpm run release:publish"
+    "release": "pnpm run release:bump && pnpm run release:postbumb"
   },
   "devDependencies": {
-    "@inquirer/prompts": "^3.3.0",
     "@types/node": "^18.16.20",
+    "commit-and-tag-version": "^12.5.1",
     "homebridge": "^1.6.0",
     "homebridge-config-ui-x": "^4.74.0",
     "rimraf": "^3.0.2",
     "typescript": "^4.9.5"
   },
   "dependencies": {
-    "reconnecting-websocket": "^4.4.0",
-    "undici": "^7.9.0",
-    "ws": "^8.18.2"
+    "undici": "^7.9.0"
   }
 }
