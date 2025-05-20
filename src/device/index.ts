@@ -1,10 +1,10 @@
+import { UnifiAccess } from '../UnifiAccess';
 import { Device } from './Device.js';
-import { Light } from './Light.js';
-import { __Name__Device } from '../bridge/__Name__Device.js';
+import { Door } from './Door';
 
 export * from './Device.js';
-export * from './Light.js';
+export * from './Door';
 
-export const Devices: { [type in __Name__Device['type']]?: Device.Factory } = {
-    'light': Light
+export const Devices: { [type in UnifiAccess.Device['type']]?: Device.Factory } = {
+    'door': Door
 }

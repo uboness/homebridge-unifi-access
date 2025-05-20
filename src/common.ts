@@ -1,19 +1,20 @@
 export type Detachable = { detach: () => void; }
 export type Nil = null | undefined;
 
+export type Promisable<T = void> = T | Promise<T>;
+
+export type ValueCallback<V, R = void> = (value: V) => Promisable<R>;
+
 export const isNil = (value: any): value is Nil => value === null || value === undefined;
 export const isUndefined = (value: any): value is undefined => value === undefined;
 export const isString = (value: any): value is string => !isNil(value) && typeof value === 'string';
 export const isBoolean = (value: any): value is boolean => !isNil(value) && typeof value === 'boolean';
 export const isNumber = (value: any): value is number => !isNil(value) && typeof value === 'number';
 
-export const cleanMapAsync = async <K extends string = string, V = any>(map: { [key in K]: V }, cb: (key: K, val: V) => void | Promise<void>) => {
-    for (let key of Object.keys(map)) {
-        const val = map[key];
-        delete map[key];
-        await cb(key as K, val);
-    }
-}
+export type JSON = JSONPrimitive | JSONObject | JSONArray;
+export type JSONPrimitive = string | number | boolean | null;
+export type JSONArray = JSON[];
+export type JSONObject = { [key: string]: JSON };
 
 export const cleanArrayAsync = async <T = any>(array: T[], cb: (value: T) => void | Promise<void>) => {
     while (array.length > 0) {
@@ -34,8 +35,37 @@ export const spliceFirstMatch = <T = any>(array: T[], predicate: (value: T) => b
     return removed;
 }
 
-export const asyncForEach = async <T = any>(array: T[], cb: (value: T, index: number) => Promise<void>) => {
-    for (let i = 0; i < array.length; i++) {
-        await cb(array[i], i);
+
+export class Detachables implements Detachable {
+
+    private detachables: Detachable[];
+
+    constructor(detachables: Detachable[] = []) {
+        this.detachables = detachables;
     }
+
+    add(detachable: Detachable): Detachable {
+        const _detachable = {
+            detach: () => {
+                detachable.detach();
+                spliceFirstMatch(this.detachables, d => d === _detachable);
+            }
+        };
+        this.detachables.push(_detachable);
+        return _detachable;
+    }
+
+    remove(detachable: Detachable): void {
+        spliceFirstMatch(this.detachables, d => d === detachable);
+    }
+
+    detach(): void {
+        while (this.detachables.length > 0) {
+            try {
+                this.detachables.pop()?.detach();
+            } catch (e) {
+            }
+        }
+    }
+
 }

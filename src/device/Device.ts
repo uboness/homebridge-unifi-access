@@ -1,35 +1,43 @@
-import { __Name__Platform } from '../__Name__Platform.js';
+import { Detachables } from '../common';
+import { UnifiAccess } from '../UnifiAccess';
+import { UnifiAccessClient } from '../UnifiAccessClient';
+import { UnifiAccessPlatform } from '../UnifiAccessPlatform.js';
 import { PlatformAccessory, Service } from 'homebridge';
-import { __Name__Bridge } from '../bridge/index.js';
 import { ILogger } from '../Logger.js';
-import { __Name__Device } from '../bridge/__Name__Device.js';
 
-export abstract class Device {
+export abstract class Device<D extends UnifiAccess.Device = UnifiAccess.Device> {
 
-    readonly bridge: __Name__Bridge;
-    readonly platform: __Name__Platform;
+    readonly platform: UnifiAccessPlatform;
+    readonly client: UnifiAccessClient;
     readonly accessory: PlatformAccessory;
     readonly primaryService: Service;
-    readonly device: __Name__Device;
+    readonly device: D;
     readonly logger: ILogger;
 
-    private _available: boolean;
+    private available: boolean;
 
-    protected constructor(platform: __Name__Platform, bridge: __Name__Bridge, accessory: PlatformAccessory, device: __Name__Device, primaryService: Service) {
+    protected readonly detachables = new Detachables();
+
+    protected constructor(platform: UnifiAccessPlatform, client: UnifiAccessClient, accessory: PlatformAccessory, device: D, primaryService: Service) {
         this.platform = platform;
-        this.bridge = bridge;
+        this.client = client;
         this.accessory = accessory;
+        this.device = device;
         this.logger = platform.logger.getLogger(this.type, this.name);
         this.primaryService = primaryService;
-        this.device = device;
-        this._available = true;
+        this.available = true;
         this.primaryService.setPrimaryService(true);
         this.primaryService.setCharacteristic(platform.Characteristic.Name, accessory.displayName);
-        let status = this.primaryService.getCharacteristic(platform.Characteristic.StatusActive);
-        if (!status) {
-            status = this.primaryService.addCharacteristic(platform.Characteristic.StatusActive);
-        }
+
+        this.primaryService.addOptionalCharacteristic(platform.Characteristic.StatusFault);
+        const status = this.primaryService.getCharacteristic(platform.Characteristic.StatusFault) ?? this.primaryService.addCharacteristic(platform.Characteristic.StatusFault);
+
         status.setValue(this.available);
+        this.detachables.add(client.on('message', (message) => {
+            if (message.deviceId === this.device.id) {
+                this.onMessage(message, platform);
+            }
+        }));
     }
 
     get id() {
@@ -44,24 +52,22 @@ export abstract class Device {
         return this.device.name;
     }
 
-    get available() {
-        return this._available;
+    async close() {
+        this.detachables.detach();
+        await this.doClose();
     }
 
-    set available(available: boolean) {
-        this._available = available;
-        this.primaryService.getCharacteristic(this.platform.Characteristic.StatusActive).updateValue(available);
-    }
+    abstract onMessage(msg: UnifiAccess.Message, platform: UnifiAccessPlatform): void;
 
-    abstract update(state: __Name__Device.State);
+    abstract update(device: D): void;
 
-    abstract close(): Promise<void>;
+    abstract doClose(): Promise<void>;
 }
 
 export namespace Device {
 
-    export type Factory<T extends Device = Device> = {
-        create: (platform: __Name__Platform, bridge: __Name__Bridge, accessory: PlatformAccessory, device: __Name__Device) => Promise<T>
+    export type Factory<D extends Device = Device> = {
+        create: (platform: UnifiAccessPlatform, client: UnifiAccessClient, accessory: PlatformAccessory, device: UnifiAccess.Device) => Promise<D>
     }
 
 }

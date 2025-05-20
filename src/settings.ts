@@ -1,9 +1,12 @@
+//@ts-ignore
+import pkg from '../package.json';
+
 /**
  * This is the name of the platform that users will use to register the plugin in the Homebridge config.json
  */
-export const PLATFORM_NAME = '__Name__';
+export const PLATFORM_NAME = 'UnifiAccess';
 
 /**
  * This must match the name of your plugin as defined the package.json
  */
-export const PLUGIN_NAME = '__packageName__';
+export const PLUGIN_NAME = pkg.name;

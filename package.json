@@ -1,12 +1,12 @@
 {
-  "name": "@uboness/__packageName__",
+  "name": "@uboness/homebridge-unifi-access",
   "version": "0.0.1",
   "author": "uboness",
   "publishConfig": {
     "@uboness:registry": "https://registry.npmjs.org "
   },
-  "displayName": "Homebridge __Name__",
-  "description": "__short_description__",
+  "displayName": "Homebridge UnifiAccess",
+  "description": "Homebridge Unifi Access Plugin",
   "license": "Apache-2.0",
   "keywords": [
     "homebridge-plugin"
@@ -19,8 +19,8 @@
     "url": "https://github.com/uboness/{{name}}/issues"
   },
   "engines": {
-    "node": "^18.17.0 || ^20.9.0",
-    "homebridge": "^1.6.0"
+    "node": "^20.19.0",
+    "homebridge": "^1.9.0"
   },
   "exports": {
     ".": {
@@ -52,7 +52,13 @@
     "@inquirer/prompts": "^3.3.0",
     "@types/node": "^18.16.20",
     "homebridge": "^1.6.0",
+    "homebridge-config-ui-x": "^4.74.0",
     "rimraf": "^3.0.2",
     "typescript": "^4.9.5"
+  },
+  "dependencies": {
+    "reconnecting-websocket": "^4.4.0",
+    "undici": "^7.9.0",
+    "ws": "^8.18.2"
   }
 }

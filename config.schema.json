@@ -5,11 +5,30 @@
   "schema": {
     "type": "object",
     "properties": {
-      "name": {
-        "title": "Name",
+      "host": {
+        "title": "IP/Host",
         "type": "string",
         "required": true,
-        "default": "Example Dynamic Platform"
+        "description": "The IP/host of the unifi access controller"
+      },
+      "port": {
+        "title": "Port",
+        "type": "number",
+        "required": true,
+        "default": 12445,
+        "description": "The IP/host of the unifi access controller"
+      },
+      "token": {
+        "title": "API Token",
+        "type": "string",
+        "required": true,
+        "description": "Unifi Access API token (create a token at System > General > API Token)"
+      },
+      "webhookPort": {
+        "title": "Webhook Port",
+        "type": "number",
+        "required": false,
+        "description": "This is the port that this plugin will listen on for webhook callback from Unifi Access"
       }
     }
   }
