@@ -5,7 +5,7 @@
   "publishConfig": {
     "@uboness:registry": "https://registry.npmjs.org "
   },
-  "displayName": "Homebridge UnifiAccess",
+  "displayName": "Homebridge Unifi Access",
   "description": "Homebridge Unifi Access Plugin",
   "license": "Apache-2.0",
   "keywords": [
