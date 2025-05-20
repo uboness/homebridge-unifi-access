@@ -41,7 +41,7 @@
     "build": "pnpm run clean && tsc",
     "watch": "pnpm run clean && tsc -w",
     "prepublishOnly": "pnpm run build",
-    "release:bump": "commit-and-tag-version",
+    "release:bump": "pnpm run build && commit-and-tag-version",
     "release:postbump": "pnpm run release:push && pnpm run release:publish",
     "release:push": "git push --follow-tags",
     "release:publish": "npm publish --access public",
