@@ -1,10 +1,16 @@
 {
-  "pluginAlias": "ExampleHomebridgePlugin",
+  "pluginAlias": "UnifiAccess",
   "pluginType": "platform",
   "singular": true,
   "schema": {
     "type": "object",
     "properties": {
+      "name": {
+        "title": "name",
+        "type": "string",
+        "required": false,
+        "default": "Unifi Access"
+      },
       "host": {
         "title": "IP/Host",
         "type": "string",
