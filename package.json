@@ -45,7 +45,7 @@
     "release:postbump": "pnpm run release:push && pnpm run release:publish",
     "release:push": "git push --follow-tags",
     "release:publish": "npm publish --access public",
-    "release": "pnpm run release:bump && pnpm run release:postbumb"
+    "release": "pnpm run release:bump && pnpm run release:postbump"
   },
   "devDependencies": {
     "@types/node": "^18.16.20",
