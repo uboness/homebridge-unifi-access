@@ -14,18 +14,7 @@ export namespace UnifiAccess {
         locked: boolean
     }
 
-    export type Message = DoorUnlocked | DoorUpdate | DoorAccess;
-
-    export type DoorUnlocked = {
-        type: 'door-unlocked',
-        deviceId: string,
-        authType: string,
-        actor: {
-            id: string,
-            name: string,
-            type: string,
-        }
-    }
+    export type Message = DoorUpdate | DoorAccess;
 
     export type DoorUpdate = {
         type: 'door-update',
