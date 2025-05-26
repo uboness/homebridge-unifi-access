@@ -2,7 +2,7 @@ import { Detachables } from '../common';
 import { UnifiAccess } from '../UnifiAccess';
 import { UnifiAccessClient } from '../UnifiAccessClient';
 import { UnifiAccessPlatform } from '../UnifiAccessPlatform.js';
-import { PlatformAccessory, Service } from 'homebridge';
+import { Characteristic, PlatformAccessory, Service } from 'homebridge';
 import { ILogger } from '../Logger.js';
 
 export abstract class Device<D extends UnifiAccess.Device = UnifiAccess.Device> {
@@ -14,7 +14,7 @@ export abstract class Device<D extends UnifiAccess.Device = UnifiAccess.Device> 
     readonly device: D;
     readonly logger: ILogger;
 
-    private available: boolean;
+    protected statusFault: Characteristic;
 
     protected readonly detachables = new Detachables();
 
@@ -25,18 +25,16 @@ export abstract class Device<D extends UnifiAccess.Device = UnifiAccess.Device> 
         this.device = device;
         this.logger = platform.logger.getLogger(this.type, this.name);
         this.primaryService = primaryService;
-        this.available = true;
         this.primaryService.setPrimaryService(true);
         this.primaryService.setCharacteristic(platform.Characteristic.Name, accessory.displayName);
 
         this.primaryService.addOptionalCharacteristic(platform.Characteristic.StatusFault);
-        const status = this.primaryService.getCharacteristic(platform.Characteristic.StatusFault) ?? this.primaryService.addCharacteristic(platform.Characteristic.StatusFault);
 
-        status.setValue(this.available);
+        this.statusFault = this.primaryService.getCharacteristic(platform.Characteristic.StatusFault) ?? this.primaryService.addCharacteristic(platform.Characteristic.StatusFault);
+        this.statusFault.setValue(true);
+
         this.detachables.add(client.on('message', (message) => {
-            if (message.deviceId === this.device.id) {
-                this.onMessage(message, platform);
-            }
+            this.onMessage(message, platform);
         }));
     }
 

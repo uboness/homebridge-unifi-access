@@ -67,12 +67,19 @@ export class UnifiAccessPlatform implements DynamicPlatformPlugin {
             if (!device) {
                 this.accessories.splice(i--, 1);
                 removeAccessories.push({ accessory, reason: `Device [${accessory.context.deviceType}] no longer available` });
+            } else {
+                const asGarageDoor = !!this.config.devices?.find(d => d.id == device.id)?.asGarageDoor;
+                const deviceType = accessory.context.deviceType;
+                if (device.type !== deviceType || asGarageDoor !== accessory.context.asGarageDoor) {
+                    this.accessories.splice(i--, 1);
+                    removeAccessories.push({ accessory, reason: `Device [${accessory.context.deviceType}] has changed` });
+                }
             }
         }
 
-        for (const { accessory } of removeAccessories) {
+        for (const { reason, accessory } of removeAccessories) {
             this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME,[ accessory ]);
-            this.logger.info(`Unregistering cached [${accessory.context.deviceType}] accessory [${accessory.displayName}]`);
+            this.logger.info(`Unregistering cached [${accessory.context.deviceType}] accessory [${accessory.displayName}] (reason: ${reason})`);
         }
 
         devices.forEach(device => this.registerDevice(device));
@@ -88,10 +95,12 @@ export class UnifiAccessPlatform implements DynamicPlatformPlugin {
             return
         }
 
+        const asGarageDoor = !!this.config.devices?.find(d => d.id == device.id)?.asGarageDoor;
+
         // generate a unique id for the accessory this should be generated from
         // something globally unique, but constant, for example, the device serial
         // number or MAC address
-        const uuid = this.api.hap.uuid.generate(`${device.type}:${device.model}:${device.id}`);
+        const uuid = this.api.hap.uuid.generate(`${device.type}:${device.model}:${device.id}:${asGarageDoor ? 'garage' : 'default'}`);
 
         // see if an accessory with the same uuid has already been registered and restored from
         // the cached devices we stored in the `configureAccessory` method above
@@ -102,12 +111,13 @@ export class UnifiAccessPlatform implements DynamicPlatformPlugin {
             accessory = new this.api.platformAccessory(deviceName, uuid);
             accessory.context.deviceId = device.id;
             accessory.context.deviceType = device.type;
+            accessory.context.asGarageDoor = asGarageDoor;
             accessory.context.deviceName = deviceName;
-            this.logger.info(`Registering [${device.type}] device [${accessory.displayName}]`);
+            this.logger.info(`Registering [${device.type}] device [${accessory.displayName}] ID [${device.id}]`);
             this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [ accessory ]);
             this.accessories.push(accessory);
         } else {
-            this.logger.info(`Found existing [${device.type}] device [${accessory.displayName}]`);
+            this.logger.info(`Found existing [${device.type}] device [${accessory.displayName}] ID [${device.id}]`);
         }
 
         accessory.on('identify', async () => {
@@ -129,6 +139,10 @@ export class UnifiAccessPlatform implements DynamicPlatformPlugin {
 export namespace UnifiAccessPlatform {
 
     export type Config = PlatformConfig & UnifiAccessClient.Config & {
+        devices?: Array<{
+            id: string;
+            asGarageDoor?: string
+        }>
     }
 
 }

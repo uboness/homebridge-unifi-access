@@ -13,7 +13,7 @@ export class ContextLogger implements ILogger {
     constructor(logger: Omit<ILogger, 'getLogger'>, ...categories: string[]) {
         this.logger = logger;
         this.categories = categories;
-        this.context = `[${categories.join('] [')}]`;
+        this.context = categories.length === 0 ? '' : `[${categories.join('] [')}]`;
     }
 
     debug(message: string, ...parameters: any[]): void {

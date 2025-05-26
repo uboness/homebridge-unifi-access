@@ -30,11 +30,29 @@
         "required": true,
         "description": "Unifi Access API token (create a token at System > General > API Token)"
       },
-      "webhookPort": {
-        "title": "Webhook Port",
-        "type": "number",
-        "required": false,
-        "description": "This is the port that this plugin will listen on for webhook callback from Unifi Access"
+      "devices": {
+        "title": "Devices",
+        "type": "array",
+        "items": {
+          "title": "Device",
+          "type": "object",
+          "properties": {
+            "id": {
+              "title": "ID",
+              "type": "string",
+              "required": true,
+              "description": "The door ID as shown in the homebridge logs",
+              "minLength": 1
+            },
+            "asGarageDoor": {
+              "title": "Publish as Garage Door",
+              "type": "boolean",
+              "required": false,
+              "default": false,
+              "description": "When set the door will be published to HomeKit as a Garage Door"
+            }
+          }
+        }
       }
     }
   }

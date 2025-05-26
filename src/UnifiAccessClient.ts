@@ -1,11 +1,9 @@
 import EventEmitter from 'node:events';
-import { createServer, Server } from 'node:http';
-import os from 'node:os';
-import { Agent, fetch } from 'undici';
-import { Detachable, isNil, isString, JSON, ValueCallback } from './common';
+import { Agent, fetch, WebSocket } from 'undici';
+import { Detachable, isNil, JSON, ValueCallback } from './common';
 import { ILogger } from './Logger';
 import { UnifiAccess } from './UnifiAccess';
-import DoorUnlocked = UnifiAccess.DoorUnlocked;
+
 
 // we'll use this agent to connect to unifi access such that we'll ignore their self-signed certs.
 const agent = new Agent({
@@ -14,87 +12,143 @@ const agent = new Agent({
     }
 });
 
+type EventMap = {
+    connect: [],
+    disconnect: [],
+    close: [],
+    message: [ UnifiAccess.Message ]
+}
+
 export class UnifiAccessClient {
 
     private readonly config: UnifiAccessClient.Config;
     private readonly logger: ILogger;
 
-    private readonly emitter = new EventEmitter();
-    private server?: Server;
-    private webhook?: WebhookData;
+    private readonly emitter = new EventEmitter<EventMap>();
+    private socket?: WebSocket;
+
+    private _state: 'init' | 'starting' | 'connected' | 'disconnected' | 'closing' | 'closed' = 'init';
 
     constructor(config: UnifiAccessClient.Config, logger: ILogger) {
         this.config = config;
         this.logger = logger.getLogger('client');
         this.emitter.setMaxListeners(1000);
+        this.emitter.on('connect', () => {
+            this.logger.info('connected');
+        });
     }
 
-    get started() {
-        return !!this.server && this.server.listening;
+    get connected() {
+        return this._state === 'connected';
     }
 
     async start() {
-        const endpoint = await new Promise<string>((resolve) => {
-            this.server = createServer((req, res) => {
-                if (req.method === 'POST' && req.headers['content-type'] === 'application/json') {
-                    let body = '';
-
-                    // Collect data chunks
-                    req.on('data', chunk => {
-                        body += chunk.toString();
-                    });
-
-                    // End of data
-                    req.on('end', () => {
-                        try {
-                            const message = JSON.parse(body);
-                            switch (message.event) {
-                                case 'access.door.unlock':
-                                    this.emitter.emit('message', {
-                                        type: 'door-unlocked',
-                                        deviceId: message.data.location.id,
-                                        authType: message.data.object.authentication_type,
-                                        actor: {
-                                            id: message.data.actor.id,
-                                            name: message.data.actor.name,
-                                            type: message.data.actor.type
-                                        }
-                                    } as DoorUnlocked);
-                            }
-                            res.writeHead(200);
-                            res.end();
-                        } catch (err) {
-                            res.writeHead(400, { 'Content-Type': 'application/json' });
-                            res.end(JSON.stringify({ error: 'Invalid JSON' }));
-                        }
-                    });
-                } else {
-                    res.writeHead(404);
-                    res.end();
-                }
-            }).listen(this.config.webhookPort ?? 0, () => {
-                const address = this.server!.address();
-                const url = isString(address) ? address : `http://${getLocalIp()}:${address!.port}`;
-                this.logger.info(`Started unifi-access webhook server [${url}]`)
-                resolve(url);
-            });
-        });
-
-        this.webhook = await this.registerWebhook(endpoint);
+        this._state = 'starting';
+        await this.connect(0, 5);
     }
 
     async close() {
-        if (this.webhook) {
-            this.logger.debug(`Unregistering webhook [${this.webhook.id}]`);
-            await this.rest('delete', `/webhooks/endpoints/${this.webhook.id}`);
+        this._state = 'closing';
+        this.socket?.close();
+        this._state = 'closed';
+        this.emitter.emit('close');
+    }
+
+    private readonly timeouts = [1, 1, 2, 3, 5, 8, 13, 21, 34]
+    private timeout(attempt: number): number {
+        return this.timeouts.length > (attempt) ? this.timeouts[attempt] : this.timeouts[this.timeouts.length - 1];
+    }
+    private async connect(attempt: number, maxAttempts: number): Promise<void> {
+        if (attempt + 1 === maxAttempts) {
+            return Promise.reject('Failed to connect');
         }
-        return new Promise<void>((resolve) => {
-            this.server?.close((error) => {
-                if (error) {
-                    this.logger.warn(`Encountered an error while closing webhook server`, error);
+        return new Promise<void>((resolve, reject) => {
+            const url = this.wsUrl();
+            if (attempt > 0) {
+                this.logger.warn(`reconnecting to [${url}] (attempt: ${attempt + 1})...`);
+            } else {
+                this.logger.debug(`connecting to [${url}]`);
+            }
+
+            this.socket = new WebSocket(url, {
+                dispatcher: agent,
+                headers: {
+                    Authorization: `Bearer ${this.config.token}`
                 }
+            });
+
+            this.socket.addEventListener('message', msg => {
+                const { event, data } = JSON.parse(msg.data);
+                switch (event) {
+                    case 'access.data.v2.location.update':
+                        if (data.location_type === 'door') {
+                            this.emitter.emit('message', {
+                                type: 'door-update',
+                                id: data.id,
+                                name: data.name,
+                                locked: data.state.lock === 'locked',
+                                available: !data.state.is_unavailable && data.state.enable
+                            });
+                        }
+                        return;
+
+                    case 'access.logs.add':
+                        const door = msg.data._source?.target?.find(location => location.type === 'door');
+                        if (door) {
+                            this.emitter.emit('message', {
+                                type: 'door-access',
+                                door: {
+                                    id: door.id,
+                                    name: door.display_name
+                                },
+                                actor: {
+                                    id: msg.data._source.actor.id,
+                                    type: msg.data._source.actor.type,
+                                    name: msg.data._source.actor.display_name,
+                                    auth: msg.data._source.authentication.credential_provider
+                                }
+                            })
+                        }
+                }
+            });
+
+            this.socket.addEventListener('error', (event: any) => {
+                this.logger.error(`Webhook socket init error`, event);
+                this.socket?.close();
+                // we might not need the code below as we're calling 'close' and that will handle the rejection or reconnection
+                // if (attempt + 1 === maxAttempts) {
+                //     reject('Failed to connect');
+                //     return;
+                // }
+            });
+
+            this.socket.addEventListener('open', () => {
+                this.logger.info(`connected`);
+                this._state = 'connected';
+                this.emitter.emit('connect');
                 resolve();
-            })
+            });
+
+            this.socket.addEventListener('close', () => {
+                this.logger.warn(`disconnected`);
+                this.emitter.emit('disconnect');
+                this.socket = undefined;
+                if (this._state !== 'closing') {
+                    const newAttempt = this._state == 'connected' ? 0 : attempt + 1;
+                    const newMaxAttempts = this._state === 'starting' ? maxAttempts : Infinity;
+                    this._state = 'disconnected';
+                    if (newAttempt + 1 === newMaxAttempts) {
+                        reject('Failed to connect');
+                        return;
+                    }
+                    const timeout = this.timeout(newAttempt);
+                    this.logger.info(`Reconnecting in ${timeout} seconds...`);
+                    setTimeout(() => {
+                        this.connect(newAttempt, newMaxAttempts);
+                    }, timeout * 1000);
+                }
+            });
+
         });
     }
 
@@ -109,6 +163,7 @@ export class UnifiAccessClient {
 
     async listDoors(): Promise<UnifiAccess.Door[]> {
         const resp = await this.rest<FetchDoorData[]>('get', '/doors');
+        console.log(`doors [${JSON.stringify(resp)}]`);
         return resp.map(door => ({
             type: 'door',
             id: door.id,
@@ -119,24 +174,11 @@ export class UnifiAccessClient {
         }));
     }
 
-    async getDoor(id: string): Promise<UnifiAccess.Door> {
-        const door = await this.rest<FetchDoorData>('get', `/doors/${id}`);
-        return {
-            type: 'door',
-            id: door.id,
-            model: 'door',
-            name: door.name,
-            locked: door.door_lock_relay_status === 'lock',
-            position: isNil(door.door_position_status) || door.door_position_status === 'none' ? undefined : door.door_position_status
-        }
-    }
-
     async unlockDoor(id: string): Promise<void> {
         await this.rest<string>('put', `/doors/${id}/unlock`);
     }
 
     async identifyDevice(type: UnifiAccess.Device['type'], id: string) {
-        // this.logger.debug(`Identifying [${type}] device [${id}]`);
         this.logger.warn(`At the moment, Unifi Access API doesn't expose the identify functionality`);
     }
 
@@ -166,35 +208,8 @@ export class UnifiAccessClient {
         return `https://${this.config.host}:${this.config.port}/api/v1/developer${endpoint}`;
     }
 
-    private async registerWebhook(endpoint: string): Promise<WebhookData> {
-        try {
-            const webhook = await this.rest<WebhookData>('post','/webhooks/endpoints', {
-                endpoint,
-                name: 'homebridge-unifi-access',
-                events: [
-                    'access.doorbell.incoming',
-                    'access.doorbell.completed',
-                    'access.doorbell.incoming.REN',
-                    'access.device.dps_status',
-                    'access.door.unlock',
-                    'access.device.emergency_status'
-                ]
-            });
-            this.logger.debug(`Registered webhook [${webhook.id}] for ${endpoint}`);
-            return webhook;
-        } catch (error: any) {
-            if (error.code === 'CODE_DEVICE_WEBHOOK_ENDPOINT_DUPLICATED') {
-                const webhooks = await this.rest<WebhookData[]>('get','/webhooks/endpoints');
-                const webhook = webhooks.find(webhook => webhook.endpoint === endpoint);
-                if (webhook) {
-                    this.logger.debug(`Reusing webhook [${webhook.id}] that already existed for [${endpoint}]`);
-                    return webhook;
-                }
-            }
-            this.logger.error(`Failed to register webhook for [${endpoint}]`, error);
-            throw error;
-        }
-
+    private wsUrl(): string {
+        return `wss://${this.config.host}:${this.config.port}/api/v1/developer/devices/notifications`;
     }
 }
 
@@ -203,8 +218,7 @@ export namespace UnifiAccessClient {
     export type Config = {
         host: string,
         port: number,
-        token: string,
-        webhookPort?: number
+        token: string
     }
 
 }
@@ -230,32 +244,8 @@ type FetchDoorData = {
     door_position_status: 'open' | 'close' | 'none'
 };
 
-type WebhookData = {
-    endpoint: string,
-    events: string[],
-    id: string,
-    name: string,
-    secret: string,
-    headers: Record<string, string>
-}
-
 type Resp<T> = {
     code: 'SUCCESS' | string,
     message: 'success' | string,
     data: T
-}
-
-function getLocalIp() {
-    const interfaces = os.networkInterfaces();
-
-    for (const name of Object.keys(interfaces)) {
-        for (const net of interfaces[name]!) {
-            // Skip over internal (i.e., 127.0.0.1) and non-IPv4 addresses
-            if (net.family === 'IPv4' && !net.internal) {
-                return net.address;
-            }
-        }
-    }
-
-    return '127.0.0.1'; // fallback
 }

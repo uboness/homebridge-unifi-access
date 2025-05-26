@@ -11,11 +11,10 @@ export namespace UnifiAccess {
 
     export type Door = DeviceBase & {
         type: 'door',
-        locked: boolean,
-        position?: 'open' | 'close'
+        locked: boolean
     }
 
-    export type Message = DoorUnlocked;
+    export type Message = DoorUnlocked | DoorUpdate | DoorAccess;
 
     export type DoorUnlocked = {
         type: 'door-unlocked',
@@ -27,4 +26,27 @@ export namespace UnifiAccess {
             type: string,
         }
     }
+
+    export type DoorUpdate = {
+        type: 'door-update',
+        id: string,
+        name: string,
+        locked: boolean,
+        available: boolean
+    }
+
+    export type DoorAccess = {
+        type: 'door-access',
+        door: {
+            id: string,
+            name: string,
+        },
+        actor: {
+            id: string,
+            type: string,
+            name: string,
+            auth: string
+        }
+    }
+
 }

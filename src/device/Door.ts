@@ -4,10 +4,20 @@ import { UnifiAccessClient } from '../UnifiAccessClient';
 import { UnifiAccessPlatform } from '../UnifiAccessPlatform.js';
 import { Device } from './Device.js';
 
-export class Door extends Device<UnifiAccess.Door> {
+export namespace Door {
+    export const create = async (platform: UnifiAccessPlatform, client: UnifiAccessClient, accessory: PlatformAccessory, device: UnifiAccess.Device) => {
+        const asGarageDoor = accessory.context.asGarageDoor;
+        if (asGarageDoor) {
+            return GarageDoor.create(platform, client, accessory, device);
+        }
+        return Lock.create(platform, client, accessory, device);
+    }
+}
+
+class Lock extends Device<UnifiAccess.Door> {
 
     static readonly create = async (platform: UnifiAccessPlatform, client: UnifiAccessClient, accessory: PlatformAccessory, device: UnifiAccess.Device) => {
-        return new Door(platform, client, accessory, device as UnifiAccess.Door);
+        return new Lock(platform, client, accessory, device as UnifiAccess.Door);
     }
 
     private readonly targetState: Characteristic;
@@ -19,15 +29,13 @@ export class Door extends Device<UnifiAccess.Door> {
         this.targetState = this.primaryService.getCharacteristic(platform.Characteristic.LockTargetState)
             .setValue(this.device.locked ? platform.Characteristic.LockTargetState.SECURED : platform.Characteristic.LockTargetState.UNSECURED)
             .onSet(async (value, context) => {
-                const locked = value === platform.Characteristic.LockTargetState.SECURED;
-                this.device.locked = locked;
-                if (locked) {
-                    setTimeout(() => this.currentState.setValue(platform.Characteristic.LockCurrentState.SECURED, 5));
-                } else if (context?.fromUnifi) {
-                    this.currentState.setValue(platform.Characteristic.LockCurrentState.UNSECURED);
-                    setTimeout(() => this.targetState.setValue(platform.Characteristic.LockTargetState.SECURED), 500);
-                } else {
-                    await client.unlockDoor(device.id);
+                if (!context?.fromUnifi) {
+                    const locked = value === platform.Characteristic.LockTargetState.SECURED;
+                    if (!locked) {
+                        await client.unlockDoor(device.id);
+                    } else {
+                        throw new Error('Unifi access door cannot be forcefully locked')
+                    }
                 }
             });
 
@@ -43,8 +51,63 @@ export class Door extends Device<UnifiAccess.Door> {
     }
 
     onMessage(msg: UnifiAccess.Message, platform: UnifiAccessPlatform) {
-        if (msg.type === 'door-unlocked') {
-            this.targetState.setValue(platform.Characteristic.LockTargetState.UNSECURED, { fromUnifi: true });
+        if (msg.type === 'door-update' && msg.id === this.device.id) {
+            this.device.locked = msg.locked;
+            const currestState = msg.locked ? platform.Characteristic.LockCurrentState.SECURED : platform.Characteristic.LockCurrentState.UNSECURED;
+            this.currentState.setValue(currestState, { fromUnifi: true });
+            const targetState = msg.locked ? platform.Characteristic.LockTargetState.SECURED : platform.Characteristic.LockTargetState.UNSECURED;
+            this.targetState.setValue(targetState, { fromUnifi: true });
+            this.statusFault.setValue(!msg.available);
+        }
+    }
+
+}
+
+class GarageDoor extends Device<UnifiAccess.Door> {
+
+    static readonly create = async (platform: UnifiAccessPlatform, client: UnifiAccessClient, accessory: PlatformAccessory, device: UnifiAccess.Device) => {
+        return new GarageDoor(platform, client, accessory, device as UnifiAccess.Door);
+    }
+
+    private readonly currentState: Characteristic;
+    private readonly targetState: Characteristic;
+
+    private constructor(platform: UnifiAccessPlatform, client: UnifiAccessClient, accessory: PlatformAccessory, device: UnifiAccess.Door) {
+        super(platform, client, accessory, device, accessory.getService(platform.Service.GarageDoorOpener) ?? accessory.addService(platform.Service.GarageDoorOpener));
+
+        this.targetState = this.primaryService.getCharacteristic(platform.Characteristic.TargetDoorState)
+            .setValue(this.device.locked ? platform.Characteristic.TargetDoorState.CLOSED : platform.Characteristic.TargetDoorState.OPEN)
+            .onSet(async (value, context) => {
+                if (!context?.fromUnifi) {
+                    const locked = value === platform.Characteristic.TargetDoorState.CLOSED;
+                    if (!locked) {
+                        setTimeout(() => this.currentState.setValue(platform.Characteristic.CurrentDoorState.OPENING) , 5);
+                        await client.unlockDoor(device.id);
+                    } else {
+                        throw new Error('Unifi access door cannot be forcefully locked')
+                    }
+                }
+            });
+
+        this.currentState = this.primaryService.getCharacteristic(platform.Characteristic.CurrentDoorState)
+            .setValue(platform.Characteristic.CurrentDoorState.CLOSED);
+    }
+
+    update(door: UnifiAccess.Door) {
+        this.device.locked = door.locked;
+    }
+
+    async doClose(){
+    }
+
+    onMessage(msg: UnifiAccess.Message, platform: UnifiAccessPlatform) {
+        if (msg.type === 'door-update' && msg.id === this.device.id) {
+            this.device.locked = msg.locked;
+            const currestState = msg.locked ? platform.Characteristic.CurrentDoorState.CLOSED : platform.Characteristic.CurrentDoorState.OPEN;
+            this.currentState.setValue(currestState, { fromUnifi: true });
+            const targetState = msg.locked ? platform.Characteristic.TargetDoorState.CLOSED : platform.Characteristic.TargetDoorState.OPEN;
+            this.targetState.setValue(targetState, { fromUnifi: true });
+            this.statusFault.setValue(!msg.available);
         }
     }
 
