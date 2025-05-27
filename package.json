@@ -1,6 +1,6 @@
 {
   "name": "@uboness/homebridge-unifi-access",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "author": "uboness",
   "publishConfig": {
     "@uboness:registry": "https://registry.npmjs.org "
