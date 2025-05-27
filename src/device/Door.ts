@@ -33,8 +33,6 @@ class Lock extends Device<UnifiAccess.Door> {
                     const locked = value === platform.Characteristic.LockTargetState.SECURED;
                     if (!locked) {
                         await client.unlockDoor(device.id);
-                    } else {
-                        throw new Error('Unifi access door cannot be forcefully locked')
                     }
                 }
             });
@@ -52,11 +50,13 @@ class Lock extends Device<UnifiAccess.Door> {
 
     onMessage(msg: UnifiAccess.Message, platform: UnifiAccessPlatform) {
         if (msg.type === 'door-update' && msg.id === this.device.id) {
-            this.device.locked = msg.locked;
-            const currestState = msg.locked ? platform.Characteristic.LockCurrentState.SECURED : platform.Characteristic.LockCurrentState.UNSECURED;
-            this.currentState.setValue(currestState, { fromUnifi: true });
-            const targetState = msg.locked ? platform.Characteristic.LockTargetState.SECURED : platform.Characteristic.LockTargetState.UNSECURED;
-            this.targetState.setValue(targetState, { fromUnifi: true });
+            if (msg.locked !== undefined) {
+                this.device.locked = msg.locked;
+                const currestState = msg.locked ? platform.Characteristic.LockCurrentState.SECURED : platform.Characteristic.LockCurrentState.UNSECURED;
+                this.currentState.setValue(currestState, { fromUnifi: true });
+                const targetState = msg.locked ? platform.Characteristic.LockTargetState.SECURED : platform.Characteristic.LockTargetState.UNSECURED;
+                this.targetState.setValue(targetState, { fromUnifi: true });
+            }
             this.statusFault.setValue(!msg.available);
         }
     }
@@ -102,11 +102,13 @@ class GarageDoor extends Device<UnifiAccess.Door> {
 
     onMessage(msg: UnifiAccess.Message, platform: UnifiAccessPlatform) {
         if (msg.type === 'door-update' && msg.id === this.device.id) {
-            this.device.locked = msg.locked;
-            const currestState = msg.locked ? platform.Characteristic.CurrentDoorState.CLOSED : platform.Characteristic.CurrentDoorState.OPEN;
-            this.currentState.setValue(currestState, { fromUnifi: true });
-            const targetState = msg.locked ? platform.Characteristic.TargetDoorState.CLOSED : platform.Characteristic.TargetDoorState.OPEN;
-            this.targetState.setValue(targetState, { fromUnifi: true });
+            if (msg.locked !== undefined) {
+                this.device.locked = msg.locked;
+                const currestState = msg.locked ? platform.Characteristic.CurrentDoorState.CLOSED : platform.Characteristic.CurrentDoorState.OPEN;
+                this.currentState.setValue(currestState, { fromUnifi: true });
+                const targetState = msg.locked ? platform.Characteristic.TargetDoorState.CLOSED : platform.Characteristic.TargetDoorState.OPEN;
+                this.targetState.setValue(targetState, { fromUnifi: true });
+            }
             this.statusFault.setValue(!msg.available);
         }
     }

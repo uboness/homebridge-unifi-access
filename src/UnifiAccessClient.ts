@@ -86,14 +86,14 @@ export class UnifiAccessClient {
                                 type: 'door-update',
                                 id: data.id,
                                 name: data.name,
-                                locked: data.state.lock === 'locked',
-                                available: !data.state.is_unavailable && data.state.enable
+                                locked: data.state?.lock !== undefined ? data.state.lock === 'locked' : undefined,
+                                available: (data.state?.is_unavailable === undefined ? true : !data.state.is_unavailable) && (data.state?.enable ?? true)
                             });
                         }
                         return;
 
                     case 'access.logs.add':
-                        const door = msg.data._source?.target?.find(location => location.type === 'door');
+                        const door = data._source?.target?.find(location => location.type === 'door');
                         if (door) {
                             this.emitter.emit('message', {
                                 type: 'door-access',
@@ -102,10 +102,10 @@ export class UnifiAccessClient {
                                     name: door.display_name
                                 },
                                 actor: {
-                                    id: msg.data._source.actor.id,
-                                    type: msg.data._source.actor.type,
-                                    name: msg.data._source.actor.display_name,
-                                    auth: msg.data._source.authentication.credential_provider
+                                    id: data._source.actor.id,
+                                    type: data._source.actor.type,
+                                    name: data._source.actor.display_name,
+                                    auth: data._source.authentication.credential_provider
                                 }
                             })
                         }
@@ -163,7 +163,6 @@ export class UnifiAccessClient {
 
     async listDoors(): Promise<UnifiAccess.Door[]> {
         const resp = await this.rest<FetchDoorData[]>('get', '/doors');
-        console.log(`doors [${JSON.stringify(resp)}]`);
         return resp.map(door => ({
             type: 'door',
             id: door.id,

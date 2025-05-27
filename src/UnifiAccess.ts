@@ -20,8 +20,8 @@ export namespace UnifiAccess {
         type: 'door-update',
         id: string,
         name: string,
-        locked: boolean,
-        available: boolean
+        locked?: boolean,
+        available?: boolean
     }
 
     export type DoorAccess = {

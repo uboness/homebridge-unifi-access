@@ -30,6 +30,58 @@
         "required": true,
         "description": "Unifi Access API token (create a token at System > General > API Token)"
       },
+      "mqtt": {
+        "title": "Mqtt",
+        "type": "object",
+        "required": false,
+        "properties": {
+          "host": {
+            "title": "Broker host",
+            "type": "string",
+            "required": true,
+            "description": "The IP/host of the mqtt broker"
+          },
+          "port": {
+            "title": "Port",
+            "type": "number",
+            "required": true,
+            "default": 1883,
+            "description": "The port of the mqtt broker"
+          },
+          "auth": {
+            "title": "Auth",
+            "type": "object",
+            "required": false,
+            "properties": {
+              "username": {
+                "title": "Username",
+                "type": "string",
+                "required": true
+              },
+              "password": {
+                "title": "Password",
+                "type": "string",
+                "required": true
+              }
+            }
+          },
+          "baseTopic": {
+            "title": "Base Topic",
+            "type": "string",
+            "required": false,
+            "default": "unifi/access",
+            "description": "The base topic for all the published topics"
+          },
+          "events": {
+            "title": "Event types",
+            "type": "array",
+            "items": {
+              "title": "Event",
+              "type": "string"
+            }
+          }
+        }
+      },
       "devices": {
         "title": "Devices",
         "type": "array",

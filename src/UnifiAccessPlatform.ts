@@ -14,6 +14,7 @@ import { ContextLogger, ILogger } from './Logger.js';
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings.js';
 import { UnifiAccess } from './UnifiAccess';
 import { UnifiAccessClient } from './UnifiAccessClient';
+import { Mqtt } from './mqtt';
 
 /**
  * Homebridge Platform
@@ -25,12 +26,13 @@ export class UnifiAccessPlatform implements DynamicPlatformPlugin {
     public readonly Service: typeof Service;
     public readonly Characteristic: typeof Characteristic;
 
+    public readonly api: API;
     public readonly logger: ILogger;
     private readonly config: UnifiAccessPlatform.Config;
-    private readonly api: API;
     private readonly accessories: PlatformAccessory[] = [];
 
     private readonly client: UnifiAccessClient;
+    private readonly mqtt?: Mqtt;
 
     private readonly devices: Device[] = [];
 
@@ -44,6 +46,9 @@ export class UnifiAccessPlatform implements DynamicPlatformPlugin {
 
         this.api.on('didFinishLaunching', () => this.init());
         this.api.on('shutdown', () => this.dispose());
+        if (this.config.mqtt) {
+            this.mqtt = new Mqtt(this, this.client, this.config.mqtt, this.logger);
+        }
     }
 
     configureAccessory(accessory: PlatformAccessory) {
@@ -52,6 +57,7 @@ export class UnifiAccessPlatform implements DynamicPlatformPlugin {
 
     async init() {
         await this.client.start();
+        await this.mqtt?.start();
 
         const devices = await this.client.listDevices();
         const deviceById = devices.reduce((deviceById, device) => {
@@ -88,6 +94,7 @@ export class UnifiAccessPlatform implements DynamicPlatformPlugin {
     async dispose() {
         await Promise.all(this.devices.map(device => device.close()));
         await this.client.close();
+        await this.mqtt?.close();
     }
 
     async registerDevice(device: UnifiAccess.Device) {
@@ -142,7 +149,8 @@ export namespace UnifiAccessPlatform {
         devices?: Array<{
             id: string;
             asGarageDoor?: string
-        }>
+        }>,
+        mqtt?: Mqtt.Config
     }
 
 }
