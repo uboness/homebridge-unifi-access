@@ -76,7 +76,8 @@ export class UnifiAccessPlatform implements DynamicPlatformPlugin {
             } else {
                 const asGarageDoor = !!this.config.devices?.find(d => d.id == device.id)?.asGarageDoor;
                 const deviceType = accessory.context.deviceType;
-                if (device.type !== deviceType || asGarageDoor !== accessory.context.asGarageDoor) {
+                const ignore = !!this.config.devices?.find(d => d.id == device.id)?.ignore;
+                if (ignore || device.type !== deviceType || asGarageDoor !== accessory.context.asGarageDoor) {
                     this.accessories.splice(i--, 1);
                     removeAccessories.push({ accessory, reason: `Device [${accessory.context.deviceType}] has changed` });
                 }
@@ -100,6 +101,10 @@ export class UnifiAccessPlatform implements DynamicPlatformPlugin {
     async registerDevice(device: UnifiAccess.Device) {
         if (isUndefined(Devices[device.type])) {
             return
+        }
+        const ignore = !!this.config.devices?.find(d => d.id == device.id)?.ignore;
+        if (ignore) {
+            return;
         }
 
         const asGarageDoor = !!this.config.devices?.find(d => d.id == device.id)?.asGarageDoor;
@@ -148,7 +153,8 @@ export namespace UnifiAccessPlatform {
     export type Config = PlatformConfig & UnifiAccessClient.Config & {
         devices?: Array<{
             id: string;
-            asGarageDoor?: string
+            ignore?: boolean
+            asGarageDoor?: boolean
         }>,
         mqtt?: Mqtt.Config
     }

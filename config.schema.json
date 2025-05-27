@@ -96,6 +96,13 @@
               "description": "The door ID as shown in the homebridge logs",
               "minLength": 1
             },
+            "ignore": {
+              "title": "Ignore this device/door",
+              "type": "boolean",
+              "required": false,
+              "default": false,
+              "description": "When set, the device will be ignore and will not be exposed to homekit"
+            },
             "asGarageDoor": {
               "title": "Publish as Garage Door",
               "type": "boolean",
