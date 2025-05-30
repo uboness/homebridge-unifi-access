@@ -83,8 +83,6 @@ class GarageDoor extends Device<UnifiAccess.Door> {
                     if (!locked) {
                         setTimeout(() => this.currentState.setValue(platform.Characteristic.CurrentDoorState.OPENING) , 5);
                         await client.unlockDoor(device.id);
-                    } else {
-                        throw new Error('Unifi access door cannot be forcefully locked')
                     }
                 }
             });
