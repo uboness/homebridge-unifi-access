@@ -82,6 +82,7 @@ export class UnifiAccessClient {
                 switch (event) {
                     case 'access.data.v2.location.update':
                         if (data.location_type === 'door') {
+                            this.logger.debug(`door update message [${JSON.stringify(data)}]`);
                             this.emitter.emit('message', {
                                 type: 'door-update',
                                 id: data.id,
@@ -95,6 +96,7 @@ export class UnifiAccessClient {
                     case 'access.logs.add':
                         const door = data._source?.target?.find(location => location.type === 'door');
                         if (door) {
+                            this.logger.debug(`door access message [${JSON.stringify(data)}]`);
                             this.emitter.emit('message', {
                                 type: 'door-access',
                                 door: {
@@ -115,11 +117,6 @@ export class UnifiAccessClient {
             this.socket.addEventListener('error', (event: any) => {
                 this.logger.error(`Webhook socket init error`, event);
                 this.socket?.close();
-                // we might not need the code below as we're calling 'close' and that will handle the rejection or reconnection
-                // if (attempt + 1 === maxAttempts) {
-                //     reject('Failed to connect');
-                //     return;
-                // }
             });
 
             this.socket.addEventListener('open', () => {
