@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.0.10](https://github.com/uboness/homebridge-unifi-access/compare/v0.0.9...v0.0.10) (2025-07-27)
+
 ## [0.0.9](https://github.com/uboness/homebridge-unifi-access/compare/v0.0.8...v0.0.9) (2025-05-31)
 
 ## [0.0.8](https://github.com/uboness/homebridge-unifi-access/compare/v0.0.7...v0.0.8) (2025-05-30)
