@@ -81,12 +81,12 @@ class GarageDoor extends Device<UnifiAccess.Door> {
                 const locked = value === platform.Characteristic.TargetDoorState.CLOSED;
                 if (!context?.fromUnifi) {
                     if (!locked) {
-                        setTimeout(() => this.currentState.setValue(platform.Characteristic.CurrentDoorState.OPENING) , 5);
+                        this.currentState.setValue(platform.Characteristic.CurrentDoorState.OPEN);
                         await client.unlockDoor(device.id);
                     }
                 }
                 if (locked) {
-                    setTimeout(() => this.currentState.setValue(platform.Characteristic.CurrentDoorState.CLOSED) , 5);
+                    this.currentState.setValue(platform.Characteristic.CurrentDoorState.CLOSED)
                 }
             });
 
