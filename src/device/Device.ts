@@ -31,7 +31,7 @@ export abstract class Device<D extends UnifiAccess.Device = UnifiAccess.Device> 
         this.primaryService.addOptionalCharacteristic(platform.Characteristic.StatusFault);
 
         this.statusFault = this.primaryService.getCharacteristic(platform.Characteristic.StatusFault) ?? this.primaryService.addCharacteristic(platform.Characteristic.StatusFault);
-        this.statusFault.setValue(true);
+        this.statusFault.setValue(false);
 
         this.detachables.add(client.on('message', (message) => {
             this.onMessage(message, platform);
@@ -53,6 +53,10 @@ export abstract class Device<D extends UnifiAccess.Device = UnifiAccess.Device> 
     async close() {
         this.detachables.detach();
         await this.doClose();
+    }
+
+    setFault(fault: boolean) {
+        this.statusFault.setValue(fault);
     }
 
     abstract onMessage(msg: UnifiAccess.Message, platform: UnifiAccessPlatform): void;

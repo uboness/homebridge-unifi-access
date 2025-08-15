@@ -90,6 +90,13 @@ export class UnifiAccessPlatform implements DynamicPlatformPlugin {
         }
 
         devices.forEach(device => this.registerDevice(device));
+
+        this.client.on('disconnect', () => {
+            this.devices.forEach(device => device.setFault(true));
+        });
+        this.client.on('connect', () => {
+            this.devices.forEach(device => device.setFault(false));
+        });
     }
 
     async dispose() {

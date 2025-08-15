@@ -149,7 +149,10 @@ export class UnifiAccessClient {
         });
     }
 
-    on(event: 'message', handler: ValueCallback<UnifiAccess.Message>): Detachable {
+    on(event: 'connect', handler: () => void): Detachable;
+    on(event: 'disconnect', handler: () => void): Detachable;
+    on(event: 'message', handler: ValueCallback<UnifiAccess.Message>): Detachable;
+    on(event: 'connect' | 'disconnect' | 'message', handler: ValueCallback<UnifiAccess.Message>): Detachable {
         this.emitter.on(event, handler);
         return { detach: () => this.emitter.off(event, handler) };
     }
