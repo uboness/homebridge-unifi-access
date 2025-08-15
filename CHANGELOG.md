@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.1](https://github.com/uboness/homebridge-unifi-access/compare/v0.1.0...v0.1.1) (2025-08-15)
+
+
+### Bug Fixes
+
+* github workflow ([f0e88d7](https://github.com/uboness/homebridge-unifi-access/commit/f0e88d74859b7ac225872e4c82fe88931791578c))
+* properly reflect the connectivity to the access server using the status fault char. ([91dfd3a](https://github.com/uboness/homebridge-unifi-access/commit/91dfd3a30042b3030adf460d8882bc14b528e196))
+
 ## [0.1.0](https://github.com/uboness/homebridge-unifi-access/compare/v0.0.11...v0.1.0) (2025-08-12)
 
 
