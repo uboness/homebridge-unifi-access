@@ -2,7 +2,7 @@
 
 ### !! Experimental !!
 
-
+[![Build](https://github.com/uboness/homebridge-unifi-access/actions/workflows/build.yml/badge.svg)](https://github.com/uboness/homebridge-unifi-access/actions/workflows/build.yml)
 
 At the moment, the only thing this plugins does is expose all the Doors in Unifi Access as momentary locks in
 homebridge/homekit. The momentary locks enables you to unlock the doors, which will then automatically be locked again
