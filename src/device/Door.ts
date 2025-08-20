@@ -25,6 +25,7 @@ class Lock extends Device<UnifiAccess.Door> {
 
     private constructor(platform: UnifiAccessPlatform, client: UnifiAccessClient, accessory: PlatformAccessory, device: UnifiAccess.Door) {
         super(platform, client, accessory, device, accessory.getService(platform.Service.LockMechanism) ?? accessory.addService(platform.Service.LockMechanism));
+        this.device.locked = true;
 
         this.targetState = this.primaryService.getCharacteristic(platform.Characteristic.LockTargetState)
             .setValue(this.device.locked ? platform.Characteristic.LockTargetState.SECURED : platform.Characteristic.LockTargetState.UNSECURED)
@@ -74,25 +75,34 @@ class GarageDoor extends Device<UnifiAccess.Door> {
 
     private constructor(platform: UnifiAccessPlatform, client: UnifiAccessClient, accessory: PlatformAccessory, device: UnifiAccess.Door) {
         super(platform, client, accessory, device, accessory.getService(platform.Service.GarageDoorOpener) ?? accessory.addService(platform.Service.GarageDoorOpener));
+        this.device.locked = true;
 
         this.targetState = this.primaryService.getCharacteristic(platform.Characteristic.TargetDoorState)
             .setValue(this.device.locked ? platform.Characteristic.TargetDoorState.CLOSED : platform.Characteristic.TargetDoorState.OPEN)
-            .onSet(async (value, context) => {
-                const locked = value === platform.Characteristic.TargetDoorState.CLOSED;
-                if (!context?.fromUnifi) {
-                    if (!locked) {
-                        this.currentState.setValue(platform.Characteristic.CurrentDoorState.OPEN);
-                        await client.unlockDoor(device.id);
-                        setTimeout(() => this.targetState.setValue(platform.Characteristic.TargetDoorState.CLOSED), 1000)
-                    }
-                }
-                if (locked) {
-                    this.currentState.setValue(platform.Characteristic.CurrentDoorState.CLOSED)
+            .onSet(async (value) => {
+                const open = value === platform.Characteristic.TargetDoorState.OPEN;
+                if (open) {
+                    setTimeout(() => this.targetState.setValue(platform.Characteristic.TargetDoorState.CLOSED), 500);
+                    this.currentState.setValue(platform.Characteristic.CurrentDoorState.OPENING);
+                    await client.unlockDoor(device.id);
                 }
             });
 
         this.currentState = this.primaryService.getCharacteristic(platform.Characteristic.CurrentDoorState)
-            .setValue(platform.Characteristic.CurrentDoorState.CLOSED);
+            .setValue(platform.Characteristic.CurrentDoorState.CLOSED)
+            .onSet(async (value) => {
+                // looks like, when the trigger duration of the gate hub is set too low (e.g. 0.5 second), the
+                // "locked" event is not sent. We want to make sure the current state is always reset to "closed", so
+                // we'll set a timer to resent it anyway after 10 seconds
+                if (value === platform.Characteristic.CurrentDoorState.OPEN) {
+                    setTimeout(() => {
+                        if (this.currentState.value !== platform.Characteristic.CurrentDoorState.CLOSED) {
+                            this.logger.debug(`looks like the 'locked' event didn't arrive, setting current state to 'closed' anyway.`)
+                            this.currentState.setValue(platform.Characteristic.CurrentDoorState.CLOSED);
+                        }
+                    }, 10000);
+                }
+            })
     }
 
     update(door: UnifiAccess.Door) {
@@ -107,9 +117,7 @@ class GarageDoor extends Device<UnifiAccess.Door> {
             if (msg.locked !== undefined) {
                 this.device.locked = msg.locked;
                 const currestState = msg.locked ? platform.Characteristic.CurrentDoorState.CLOSED : platform.Characteristic.CurrentDoorState.OPEN;
-                this.currentState.setValue(currestState, { fromUnifi: true });
-                const targetState = msg.locked ? platform.Characteristic.TargetDoorState.CLOSED : platform.Characteristic.TargetDoorState.OPEN;
-                this.targetState.setValue(targetState, { fromUnifi: true });
+                this.currentState.setValue(currestState);
             }
             this.statusFault.setValue(!msg.available);
         }

@@ -78,7 +78,8 @@ export class UnifiAccessClient {
             });
 
             this.socket.addEventListener('message', msg => {
-                const { event, data } = JSON.parse(msg.data);
+                const content = JSON.parse(msg.data);
+                const { event, data } = content;
                 switch (event) {
                     case 'access.data.v2.location.update':
                         if (data.location_type === 'door') {
@@ -96,7 +97,6 @@ export class UnifiAccessClient {
                     case 'access.logs.add':
                         const door = data._source?.target?.find(location => location.type === 'door');
                         if (door) {
-                            this.logger.debug(`door access message [${JSON.stringify(data)}]`);
                             this.emitter.emit('message', {
                                 type: 'door-access',
                                 door: {
@@ -174,6 +174,7 @@ export class UnifiAccessClient {
     }
 
     async unlockDoor(id: string): Promise<void> {
+        this.logger.debug(`unlocking door: ${id}`);
         await this.rest<string>('put', `/doors/${id}/unlock`);
     }
 
