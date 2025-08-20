@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.2](https://github.com/uboness/homebridge-unifi-access/compare/v0.1.1...v0.1.2) (2025-08-20)
+
+
+### Bug Fixes
+
+* the Garage device state is now set appropriately. The target state will always reset to `closed` and while the current state is based on the unifi event, if it's stays open for 10 seconds (due to missed unifi event) it will automatically reset to `closed` ([3a14378](https://github.com/uboness/homebridge-unifi-access/commit/3a143783118a0bc2eea7078f5d3a029e13b72d49))
+
 ## [0.1.1](https://github.com/uboness/homebridge-unifi-access/compare/v0.1.0...v0.1.1) (2025-08-15)
 
 
