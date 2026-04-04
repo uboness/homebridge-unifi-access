@@ -54,8 +54,8 @@
   "devDependencies": {
     "@types/node": "^18.19.122",
     "commit-and-tag-version": "^12.5.2",
-    "homebridge": "^1.11.0",
-    "homebridge-config-ui-x": "^5.4.1",
+    "homebridge": "^1.11.4",
+    "homebridge-config-ui-x": "^5.21.0",
     "rimraf": "^6.0.1",
     "typescript": "^5.9.2"
   },
